@@ -32,12 +32,23 @@ class OTAUpdater:
         -------
             bool: true if a new version is available, false otherwise
         """
+        
+        # Check if SSL is available (required for GitHub API)
+        try:
+            import ussl
+        except ImportError:
+            print('SSL not available, OTA updates disabled')
+            return False
 
-        (current_version, latest_version) = self._check_for_new_version()
-        if latest_version > current_version:
-            print('New version available, will download and install on next reboot')
-            self._create_new_version_file(latest_version)
-            return True
+        try:
+            (current_version, latest_version) = self._check_for_new_version()
+            if latest_version > current_version:
+                print('New version available, will download and install on next reboot')
+                self._create_new_version_file(latest_version)
+                return True
+        except Exception as e:
+            print('OTA check failed:', e)
+            return False
 
         return False
 
@@ -50,6 +61,13 @@ class OTAUpdater:
         - If yes, it initializes the WIFI connection, downloads the latest version and installs it
         - If no, the WIFI connection is not initialized as no new known version is available
         """
+        
+        # Check if SSL is available (required for GitHub API)
+        try:
+            import ussl
+        except ImportError:
+            print('SSL not available, OTA updates disabled')
+            return False
 
         if self.new_version_dir in os.listdir(self.module):
             if '.version' in os.listdir(self.modulepath(self.new_version_dir)):
@@ -73,16 +91,27 @@ class OTAUpdater:
         -------
             bool: true if a new version is available, false otherwise
         """
+        
+        # Check if SSL is available (required for GitHub API)
+        try:
+            import ussl
+        except ImportError:
+            print('SSL not available, OTA updates disabled')
+            return False
 
-        (current_version, latest_version) = self._check_for_new_version()
-        if latest_version > current_version:
-            print('Updating to version {}...'.format(latest_version))
-            self._create_new_version_file(latest_version)
-            self._download_new_version(latest_version)
-            self._copy_secrets_file()
-            self._delete_old_version()
-            self._install_new_version()
-            return True
+        try:
+            (current_version, latest_version) = self._check_for_new_version()
+            if latest_version > current_version:
+                print('Updating to version {}...'.format(latest_version))
+                self._create_new_version_file(latest_version)
+                self._download_new_version(latest_version)
+                self._copy_secrets_file()
+                self._delete_old_version()
+                self._install_new_version()
+                return True
+        except Exception as e:
+            print('OTA update failed:', e)
+            return False
         
         return False
 
