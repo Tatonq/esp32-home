@@ -327,6 +327,16 @@ HTML_INDEX = """<!doctype html>
     <ul id="nets"></ul>
     <small>คลิก SSID เพื่อกรอกอัตโนมัติ</small>
   </div>
+  
+  <button id="btn-ota">Check OTA</button>
+    <script>
+    document.getElementById('btn-ota').onclick = async ()=>{
+      const r = await fetch('/ota/check', {method:'POST'});
+      const j = await r.json();
+      alert(JSON.stringify(j));
+      if (j.ok) location.reload();
+    };
+    </script>
 
 <script>
 async function scan(){
@@ -409,6 +419,9 @@ def _wm_add_portal_methods_to(cls):
                     await self._send_json(w, nets)
                 except Exception as e:
                     await self._send_json(w, {"error": str(e), "nets": []})
+            elif method == "GET" and path == "/sysinfo":
+                import myos
+                await self._send_json(w, myos.get_info())
 
             elif method == "POST" and path == "/save":
                 body = req.split("\r\n\r\n", 1)[1] if "\r\n\r\n" in req else ""
@@ -423,6 +436,25 @@ def _wm_add_portal_methods_to(cls):
                     ok = self.connect(ssid, pwd, timeout=10, hostname=hostname, wait=True)
                     msg = "connected" if ok else "connect failed"
                 await self._send_json(w, {"ok": ok, "message": msg, "ip": self.ip_info(), "ssid": ssid})
+            elif method == "POST" and path == "/ota/check":
+                from app.ota_updater import OTAUpdater
+                headers = {
+                    b"Accept": b"application/vnd.github+json",
+                    b"X-GitHub-Api-Version": b"2022-11-28",
+                }
+                o = OTAUpdater(
+                    github_repo="Tatonq/esp32-home",
+                    main_dir="main", 
+                    new_version_dir="next",
+                    headers=headers
+                )
+                ok = False
+                try:
+                    ok = o.check_for_update_to_install_during_next_reboot()
+                except Exception as e:
+                    await self._send_json(w, {"ok": False, "error": str(e)})
+                else:
+                    await self._send_json(w, {"ok": ok, "message": "reboot to install" if ok else "no update"})
             else:
                 await self._send(w, "HTTP/1.1 404 Not Found\r\n\r\n")
         except Exception as e:
