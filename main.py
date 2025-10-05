@@ -10,7 +10,34 @@ import gc
 
 
 GITHUB_REPO   = "Tatonq/esp32-home"
-o = OTAUpdater(github_repo=GITHUB_REPO, main_dir="main", new_version_dir="next")
+
+# อ่าน GitHub config
+try:
+    import ujson
+    with open('/config/github.json', 'r') as f:
+        github_config = ujson.load(f)
+    github_token = github_config.get('github_token', '')
+    GITHUB_REPO = github_config.get('github_repo', 'Tatonq/esp32-home')
+except:
+    github_token = ''
+    GITHUB_REPO = "Tatonq/esp32-home"
+    print("[OTA] No GitHub config found, using default settings")
+
+# สร้าง headers สำหรับ private repo
+headers = {
+    b"Accept": b"application/vnd.github+json",
+    b"X-GitHub-Api-Version": b"2022-11-28",
+}
+
+if github_token:
+    headers[b"Authorization"] = f"Bearer {github_token}".encode()
+
+o = OTAUpdater(
+    github_repo=GITHUB_REPO, 
+    main_dir="main", 
+    new_version_dir="next",
+    headers=headers
+)
 
 led = Pin(2, Pin.OUT)
 wm = WiFiManager()  # แทน wifi.WiFiManager()

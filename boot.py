@@ -15,11 +15,26 @@ MAIN_DIR      = "main"                # ต้องตรงกับฝั่�
 NEXT_DIR      = "next"
 
 # สร้างอ็อบเจ็กต์ OTA (แนบ header ถ้ามี token)
+try:
+    import ujson
+    with open('/config/github.json', 'r') as f:
+        github_config = ujson.load(f)
+    github_token = github_config.get('github_token', '')
+    GITHUB_REPO = github_config.get('github_repo', 'Tatonq/esp32-home')
+except:
+    github_token = ''
+    print("[OTA] No GitHub config found, using default settings")
+
 headers = {
     b"Accept": b"application/vnd.github+json",
-    # b"Authorization": b"Bearer ghp_xxx",  # ใส่ถ้ามี token
     b"X-GitHub-Api-Version": b"2022-11-28",
 }
+
+if github_token:
+    headers[b"Authorization"] = f"Bearer {github_token}".encode()
+    print("[OTA] Using GitHub token authentication")
+else:
+    print("[OTA] Warning: No GitHub token - private repos will not work")
 o = OTAUpdater(
     github_repo=GITHUB_REPO,
     github_src_dir=GITHUB_SRC_DIR,
