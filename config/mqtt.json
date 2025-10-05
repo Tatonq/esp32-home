@@ -1,0 +1,9 @@
+{
+  "server": "localhost",
+  "port": 1883,
+  "username": "tatonq",
+  "password": "your_password",
+  "keepalive": 60,
+  "health_interval": 30,
+  "sysinfo_interval": 300
+}

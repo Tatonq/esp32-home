@@ -5,6 +5,7 @@ import time
 from wifi import WiFiManager
 import myos
 from app.ota_updater import OTAUpdater
+from mqtt import MQTTManager
 import gc
 
 
@@ -13,6 +14,7 @@ o = OTAUpdater(github_repo=GITHUB_REPO, main_dir="main", new_version_dir="next")
 
 led = Pin(2, Pin.OUT)
 wm = WiFiManager()  # แทน wifi.WiFiManager()
+mqtt = MQTTManager(server="localhost")  # เพิ่ม MQTT client
 
 updated = o.install_update_if_available()
 if updated:
@@ -42,6 +44,10 @@ async def caretaker():
     wm.start_watchdog(timeout_ms=15000, feed_every_ms=3000, timer_id=0)
 
     synced = False
+    mqtt_connected = False
+    health_timer = 0
+    sysinfo_timer = 0
+    
     print("[SYS] Initial system info:")
     myos.print_info()  # 🆕 แสดงข้อมูลระบบตอนเริ่มต้น
 
@@ -58,6 +64,37 @@ async def caretaker():
             # ✅ แสดงข้อมูล client/เครื่องอีกครั้งเมื่อออนไลน์แล้ว
             print("\n[SYS] Connected info:")
             myos.print_info()
+        
+        # MQTT management
+        if wm.sta.isconnected():
+            # เชื่อมต่อ MQTT ถ้ายังไม่ได้เชื่อมต่อ
+            if not mqtt_connected:
+                print("[MQTT] Attempting to connect...")
+                mqtt_connected = mqtt.connect()
+                if mqtt_connected:
+                    # ส่ง initial status และ sysinfo
+                    mqtt.publish_status("online", {"source": "boot"})
+                    mqtt.publish_sysinfo()
+            
+            # ส่ง health ping ทุก 30 วินาที
+            if mqtt_connected and health_timer >= 30:
+                if not mqtt.keepalive():
+                    mqtt_connected = False  # connection lost
+                health_timer = 0
+            
+            # ส่ง sysinfo ทุก 5 นาที (300 วินาที)
+            if mqtt_connected and sysinfo_timer >= 300:
+                mqtt.publish_sysinfo()
+                sysinfo_timer = 0
+        else:
+            # ไม่มี WiFi - ตัดการเชื่อมต่อ MQTT
+            if mqtt_connected:
+                mqtt.disconnect()
+                mqtt_connected = False
+
+        # เพิ่ม timer counters
+        health_timer += 10
+        sysinfo_timer += 10
 
         await asyncio.sleep(10)  # เช็กทุก 10 วิ
 
