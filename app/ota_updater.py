@@ -252,6 +252,30 @@ class OTAUpdater:
             self._copy_directory(self.modulepath(self.new_version_dir), self.modulepath(self.main_dir))
             self._rmtree(self.modulepath(self.new_version_dir))
         print('Update installed, please reboot now')
+        
+        # ส่ง MQTT notification หลัง OTA เสร็จ
+        self._notify_ota_complete()
+    
+    def _notify_ota_complete(self):
+        """ส่ง MQTT notification หลัง OTA เสร็จ"""
+        try:
+            # อ่านเวอร์ชั่นใหม่ที่เพิ่งติดตั้ง
+            new_version = self.get_version(self.modulepath(self.main_dir))
+            
+            # ถ้ามี WiFi และ MQTT ให้ส่งข้อความ
+            try:
+                import network
+                sta = network.WLAN(network.STA_IF)
+                if sta.isconnected():
+                    from mqtt import MQTTManager
+                    mqtt = MQTTManager()
+                    if mqtt.connect():
+                        mqtt.publish_version(new_version, source="ota_update")
+                        print(f"[OTA] Notified MQTT: version {new_version}")
+            except Exception as e:
+                print(f"[OTA] MQTT notification failed: {e}")
+        except Exception as e:
+            print(f"[OTA] Post-install notification error: {e}")
 
     def _rmtree(self, directory):
         for entry in os.ilistdir(directory):

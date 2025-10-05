@@ -110,42 +110,67 @@ def _wlan_info(kind="sta"):
     return out
 
 
-# ---------- core collectors ----------
+def _get_current_version():
+    """อ่านเวอร์ชั่นปัจจุบันจากไฟล์ .version"""
+    try:
+        with open('main/.version', 'r') as f:
+            return f.read().strip()
+    except:
+        return "unknown"
+
 def collect_info_dict():
-    lines = {}
+    info = {}
+    
+    # เพิ่มเวอร์ชั่นเป็นข้อมูลแรก
+    try:
+        info["version"] = _get_current_version()
+    except Exception:
+        info["version"] = "unknown"
+    
+    # platform/board
+    try:
+        if machine:
+            freq = machine.freq()
+            info["platform"] = "ESP32"
+            info["cpu_freq"] = freq
+        else:
+            info["platform"] = "Unknown"
+    except Exception:
+        info["platform"] = "Unknown"
+    
 
     # Python / firmware
     try:
-        lines["sys_version"] = sys.version
+        info["sys_version"] = sys.version
     except Exception:
         pass
 
     try:
-        lines["mp_version"] = sys.implementation._machine if hasattr(sys.implementation, "_machine") else str(sys.implementation)
+        info["mp_version"] = sys.implementation._machine if hasattr(sys.implementation, "_machine") else str(sys.implementation)
     except Exception:
         pass
 
     # uname
     try:
-        lines["os_uname"] = " ".join([str(x) for x in os.uname()])
+        info["os_uname"] = " ".join([str(x) for x in os.uname()])
     except Exception:
         pass
 
     # machine info
     if machine:
         try:
-            lines["unique_id"] = ubinascii.hexlify(machine.unique_id()).decode()
+            info["unique_id"] = ubinascii.hexlify(machine.unique_id()).decode()
         except Exception:
             pass
         try:
             # ความถี่ CPU (ถ้ามี)
             freq = machine.freq()
-            lines["cpu_freq_hz"] = freq if isinstance(freq, int) else str(freq)
+            info["cpu_freq_hz"] = freq if isinstance(freq, int) else str(freq)
         except Exception:
             pass
         try:
             # RTC localtime (อาจเป็น UTC ถ้ายังไม่ได้ตั้ง NTP)
-            lines["rtc_localtime"] = "{}".format(time.localtime())
+            info["rtc_localtime"] = "{}".format(time.localtime())
         except Exception:
             pass
 
@@ -154,22 +179,22 @@ def collect_info_dict():
         gc.collect()
         free = gc.mem_free()
         alloc = gc.mem_alloc()
-        lines["mem_free"] = _fmt_bytes(free)
-        lines["mem_alloc"] = _fmt_bytes(alloc)
+        info["mem_free"] = _fmt_bytes(free)
+        info["mem_alloc"] = _fmt_bytes(alloc)
     except Exception:
         pass
 
     # filesystem
     fs = _fs_info()
     if fs:
-        lines["fs_total"] = _fmt_bytes(fs.get("total", 0))
-        lines["fs_used"]  = _fmt_bytes(fs.get("used", 0))
-        lines["fs_free"]  = _fmt_bytes(fs.get("free", 0))
+        info["fs_total"] = _fmt_bytes(fs.get("total", 0))
+        info["fs_used"]  = _fmt_bytes(fs.get("used", 0))
+        info["fs_free"]  = _fmt_bytes(fs.get("free", 0))
 
     # uptime
     try:
         d, h, m, s = _uptime_tuple()
-        lines["uptime"] = "{}d {:02d}:{:02d}:{:02d}".format(d, h, m, s)
+        info["uptime"] = "{}d {:02d}:{:02d}:{:02d}".format(d, h, m, s)
     except Exception:
         pass
 
@@ -177,20 +202,20 @@ def collect_info_dict():
     sta = _wlan_info("sta")
     ap  = _wlan_info("ap")
     if sta:
-        lines["sta_active"] = sta.get("active")
-        if "mac" in sta: lines["sta_mac"] = sta["mac"]
-        if "ip" in sta:  lines["sta_ip"]  = sta["ip"]
-        if "gw" in sta:  lines["sta_gw"]  = sta["gw"]
-        if "dns" in sta: lines["sta_dns"] = sta["dns"]
-        if "hostname" in sta: lines["sta_hostname"] = sta["hostname"]
-        if "rssi" in sta: lines["sta_rssi"] = sta["rssi"]
+        info["sta_active"] = sta.get("active")
+        if "mac" in sta: info["sta_mac"] = sta["mac"]
+        if "ip" in sta:  info["sta_ip"]  = sta["ip"]
+        if "gw" in sta:  info["sta_gw"]  = sta["gw"]
+        if "dns" in sta: info["sta_dns"] = sta["dns"]
+        if "hostname" in sta: info["sta_hostname"] = sta["hostname"]
+        if "rssi" in sta: info["sta_rssi"] = sta["rssi"]
     if ap:
-        lines["ap_active"] = ap.get("active")
-        if "mac" in ap:    lines["ap_mac"] = ap["mac"]
-        if "ip" in ap:     lines["ap_ip"]  = ap["ip"]
-        if "essid" in ap:  lines["ap_essid"] = ap["essid"]
+        info["ap_active"] = ap.get("active")
+        if "mac" in ap:    info["ap_mac"] = ap["mac"]
+        if "ip" in ap:     info["ap_ip"]  = ap["ip"]
+        if "essid" in ap:  info["ap_essid"] = ap["essid"]
 
-    return lines
+    return info
 
 
 def collect_info_lines():
@@ -198,6 +223,7 @@ def collect_info_lines():
     d = collect_info_dict()
     # กำหนดลำดับคีย์หลักเพื่อให้อ่านง่าย
     order = [
+        "version",
         "sys_version", "mp_version", "os_uname",
         "unique_id", "cpu_freq_hz",
         "rtc_localtime", "uptime",

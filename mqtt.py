@@ -204,6 +204,28 @@ class MQTTManager:
         print("[MQTT] Attempting to reconnect...")
         return self.connect()
 
+    def publish_version(self, version, source="ota"):
+        """ส่งข้อมูลเวอร์ชั่นปัจจุบัน"""
+        if not self.client:
+            return False
+        
+        topic = f"esp/{self.device_id}/version"
+        data = {
+            "device_id": self.device_id,
+            "timestamp": time.time(),
+            "version": version,
+            "source": source  # "ota", "boot", "manual"
+        }
+        
+        try:
+            payload = json.dumps(data)
+            self.client.publish(topic, payload)
+            print(f"[MQTT] Published version: {version}")
+            return True
+        except Exception as e:
+            print(f"[MQTT] Publish version error: {e}")
+            return False
+
 # สร้าง global instance (optional)
 # mqtt_client = None
 

@@ -44,8 +44,7 @@ o = OTAUpdater(
     headers=headers
 )
 
-# 1) เช็คว่ามีไฟล์ next/.version ไหม -> ถ้ามีก็ติดตั้งเลย (ไม่ต้องต่อ WiFi ถ้าไม่ต้องโหลดเพิ่ม)
-#    หรือใช้วิธีเบา ๆ: ตรวจมีไฟล์ next แล้วค่อยติดตั้ง
+# 1) เช็คว่ามีไฟล์ next/.version ไหม -> ถ้ามีก็ติดตั้งเลย
 try:
     # ถ้ามีไฟล์เวอร์ชันแล้ว -> ติดตั้ง
     did = o.install_update_if_available_after_boot(ssid="", password="")
@@ -59,4 +58,4 @@ except Exception as e:
     print("[OTA] boot install error:", e)
 
 # 2) เข้า main ของเรา
-import main  # เพิ่มบรรทัดนี้
+import main

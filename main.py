@@ -80,12 +80,13 @@ async def caretaker():
     mqtt_connected = False
     health_timer = 0
     sysinfo_timer = 0
+    version_sent = False  # เพิ่มตัวแปรนี้
     
     print("[SYS] Initial system info:")
     myos.print_info()
 
     while True:
-        gc.collect()  # เพิ่ม
+        gc.collect()
         wm.keepalive(retry_interval_sec=8)
 
         # sync เวลา เมื่อออนไลน์ครั้งแรก
@@ -105,14 +106,22 @@ async def caretaker():
                 print("[MQTT] Attempting to connect...")
                 mqtt_connected = mqtt.connect()
                 if mqtt_connected:
-                    # ส่ง initial status และ sysinfo
+                    print("[MQTT] Connected successfully")
                     mqtt.publish_status("online", {"source": "boot"})
-                    mqtt.publish_sysinfo()
+                    
+                    # ส่งเวอร์ชั่นครั้งแรกหลังเชื่อมต่อ MQTT
+                    if not version_sent:
+                        try:
+                            with open('main/.version', 'r') as f:
+                                current_version = f.read().strip()
+                            mqtt.publish_version(current_version, source="boot")
+                            version_sent = True
+                        except:
+                            pass
             
             # ส่ง health ping ทุก 30 วินาที
             if mqtt_connected and health_timer >= 30:
-                if not mqtt.keepalive():
-                    mqtt_connected = False  # connection lost
+                mqtt.publish_health("online")
                 health_timer = 0
             
             # ส่ง sysinfo ทุก 5 นาที (300 วินาที)
