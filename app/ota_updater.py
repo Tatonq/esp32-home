@@ -42,7 +42,7 @@ class OTAUpdater:
 
         try:
             (current_version, latest_version) = self._check_for_new_version()
-            if latest_version > current_version:
+            if self._compare_versions(current_version, latest_version):
                 print('New version available, will download and install on next reboot')
                 self._create_new_version_file(latest_version)
                 return True
@@ -101,7 +101,7 @@ class OTAUpdater:
 
         try:
             (current_version, latest_version) = self._check_for_new_version()
-            if latest_version > current_version:
+            if self._compare_versions(current_version, latest_version):
                 print('Updating to version {}...'.format(latest_version))
                 self._create_new_version_file(latest_version)
                 self._download_new_version(latest_version)
@@ -135,7 +135,45 @@ class OTAUpdater:
         print('Checking version... ')
         print('\tCurrent version: ', current_version)
         print('\tLatest version: ', latest_version)
+        
+        # Debug version comparison
+        is_newer = self._compare_versions(current_version, latest_version)
+        print('\tIs newer version available: ', is_newer)
+        
         return (current_version, latest_version)
+    
+    def _compare_versions(self, current, latest):
+        """
+        เปรียบเทียบเวอร์ชั่น semantic version (v1.2.3)
+        Returns True ถ้า latest > current
+        """
+        def parse_version(version):
+            # ลบ 'v' ข้างหน้าถ้ามี
+            version = version.lstrip('v')
+            try:
+                parts = version.split('.')
+                return [int(p) for p in parts]
+            except:
+                # fallback ถ้า parse ไม่ได้
+                return [0, 0, 0]
+        
+        current_parts = parse_version(current)
+        latest_parts = parse_version(latest)
+        
+        # เพิ่ม 0 ให้ครบ 3 ตัว
+        while len(current_parts) < 3:
+            current_parts.append(0)
+        while len(latest_parts) < 3:
+            latest_parts.append(0)
+        
+        # เปรียบเทียบแต่ละส่วน
+        for i in range(3):
+            if latest_parts[i] > current_parts[i]:
+                return True
+            elif latest_parts[i] < current_parts[i]:
+                return False
+        
+        return False  # เวอร์ชั่นเหมือนกัน
 
     def _create_new_version_file(self, latest_version):
         self.mkdir(self.modulepath(self.new_version_dir))
@@ -155,10 +193,17 @@ class OTAUpdater:
         return '0.0'
 
     def get_latest_version(self):
-        latest_release = self.http_client.get('https://api.github.com/repos/{}/releases/latest'.format(self.github_repo))
-        version = latest_release.json()['tag_name']
-        latest_release.close()
-        return version
+        print('Fetching latest version from GitHub...')
+        try:
+            latest_release = self.http_client.get('https://api.github.com/repos/{}/releases/latest'.format(self.github_repo))
+            response_data = latest_release.json()
+            version = response_data['tag_name']
+            latest_release.close()
+            print('Successfully fetched latest version: ', version)
+            return version
+        except Exception as e:
+            print('Error fetching latest version: ', e)
+            raise
 
     def _download_new_version(self, version):
         print('Downloading version {}'.format(version))

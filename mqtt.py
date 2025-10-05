@@ -129,11 +129,10 @@ class MQTTManager:
         
         return self.publish(self.health_topic, payload, retain=True)
     
-    def publish_sysinfo(self, sysinfo_data=None, version=None):
+    def publish_sysinfo(self, sysinfo_data=None):
         """
         ส่งข้อมูลระบบ
         sysinfo_data: dict ข้อมูลระบบ หรือ None เพื่อใช้ myos.collect_info_dict()
-        version: เวอร์ชั่นของโค้ด (optional)
         """
         try:
             if sysinfo_data is None:
@@ -150,10 +149,6 @@ class MQTTManager:
                 "timestamp": time.time(),
                 "sysinfo": sysinfo_data
             }
-            
-            # เพิ่มเวอร์ชั่นถ้ามี
-            if version:
-                payload["version"] = version
             
             return self.publish(self.sysinfo_topic, payload, retain=True)
             
