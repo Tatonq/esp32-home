@@ -47,12 +47,18 @@ o = OTAUpdater(
 # 1) เช็คว่ามีไฟล์ next/.version ไหม -> ถ้ามีก็ติดตั้งเลย (ไม่ต้องต่อ WiFi ถ้าไม่ต้องโหลดเพิ่ม)
 #    หรือใช้วิธีเบา ๆ: ตรวจมีไฟล์ next แล้วค่อยติดตั้ง
 try:
+    # แสดงเวอร์ชั่นปัจจุบันก่อน OTA
+    current_version = o.get_version(o.modulepath(o.main_dir))
+    print(f"[BOOT] Current version: {current_version}")
+    
     # ถ้ามีไฟล์เวอร์ชันแล้ว -> ติดตั้ง
     did = o.install_update_if_available_after_boot(ssid="", password="")
     if did:
         print("[OTA] Update installed, rebooting...")
         import machine
         machine.reset()
+    else:
+        print("[OTA] No pending updates")
 except Exception as e:
     print("[OTA] boot install error:", e)
 

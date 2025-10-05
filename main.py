@@ -43,12 +43,28 @@ led = Pin(2, Pin.OUT)
 wm = WiFiManager()  # แทน wifi.WiFiManager()
 mqtt = MQTTManager(server="localhost")  # เพิ่ม MQTT client
 
+# ฟังก์ชันแสดงเวอร์ชั่นปัจจุบัน
+def print_current_version():
+    """แสดงเวอร์ชั่นปัจจุบันของโค้ด"""
+    try:
+        current_version = o.get_version(o.modulepath(o.main_dir))
+        print(f"[VERSION] Current version: {current_version}")
+        return current_version
+    except Exception as e:
+        print(f"[VERSION] Error reading version: {e}")
+        return "unknown"
+
+# เช็ค OTA และแสดงเวอร์ชั่น
+print("[OTA] Checking for updates...")
 updated = o.install_update_if_available()
 if updated:
     import machine
     print("[OTA] Updated. Rebooting...")
     time.sleep(1)
     machine.reset()
+else:
+    print("[OTA] No new updates found")
+    current_version = print_current_version()
 
 
 async def blink():
@@ -76,6 +92,7 @@ async def caretaker():
     sysinfo_timer = 0
     
     print("[SYS] Initial system info:")
+    print_current_version()  # แสดงเวอร์ชั่นปัจจุบัน
     myos.print_info()  # 🆕 แสดงข้อมูลระบบตอนเริ่มต้น
 
     while True:
@@ -99,9 +116,14 @@ async def caretaker():
                 print("[MQTT] Attempting to connect...")
                 mqtt_connected = mqtt.connect()
                 if mqtt_connected:
-                    # ส่ง initial status และ sysinfo
-                    mqtt.publish_status("online", {"source": "boot"})
-                    mqtt.publish_sysinfo()
+                    # ส่ง initial status และ sysinfo พร้อมเวอร์ชั่น
+                    version = print_current_version()
+                    mqtt.publish_status("online", {
+                        "source": "boot", 
+                        "version": version,
+                        "timestamp": time.time()
+                    })
+                    mqtt.publish_sysinfo(version=version)
             
             # ส่ง health ping ทุก 30 วินาที
             if mqtt_connected and health_timer >= 30:
@@ -111,7 +133,8 @@ async def caretaker():
             
             # ส่ง sysinfo ทุก 5 นาที (300 วินาที)
             if mqtt_connected and sysinfo_timer >= 300:
-                mqtt.publish_sysinfo()
+                version = print_current_version()
+                mqtt.publish_sysinfo(version=version)
                 sysinfo_timer = 0
         else:
             # ไม่มี WiFi - ตัดการเชื่อมต่อ MQTT
